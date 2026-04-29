@@ -23,8 +23,16 @@ NewAPI 渠道同步管理工具。
 
 ```bash
 uv sync
+npm install --prefix frontend
+npm run build --prefix frontend
 cp .env.example .env
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+打开前端：
+
+```text
+http://127.0.0.1:8000/
 ```
 
 打开接口文档：
@@ -77,4 +85,5 @@ Content-Type: application/json
 
 ```bash
 uv run pytest
+npm run build --prefix frontend
 ```
