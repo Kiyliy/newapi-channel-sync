@@ -82,6 +82,22 @@ const defaultChannel: ChannelForm = {
 };
 const defaultUser: UserForm = { username: "", password: "", role: "user" };
 
+function channelToForm(channel: Channel): ChannelForm {
+  return {
+    name: channel.name,
+    type: String(channel.type),
+    status: String(channel.status),
+    base_url: channel.base_url ?? "",
+    models: channel.models.join(", "),
+    groups: channel.groups.join(", "),
+    priority: String(channel.priority),
+    weight: String(channel.weight),
+    key: "",
+    model_mapping: JSON.stringify(channel.model_mapping, null, 2),
+    extra_config: JSON.stringify(channel.extra_config, null, 2)
+  };
+}
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => window.localStorage.getItem(TOKEN_KEY));
   const [user, setUser] = useState<User | null>(null);
@@ -94,6 +110,7 @@ export function App() {
   const [loginForm, setLoginForm] = useState<LoginForm>(defaultLogin);
   const [instanceForm, setInstanceForm] = useState<InstanceForm>(defaultInstance);
   const [channelForm, setChannelForm] = useState<ChannelForm>(defaultChannel);
+  const [editChannelForm, setEditChannelForm] = useState<ChannelForm>(defaultChannel);
   const [userForm, setUserForm] = useState<UserForm>(defaultUser);
   const [bindInstanceId, setBindInstanceId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -171,6 +188,12 @@ export function App() {
       void refresh();
     }
   }, [refresh, token]);
+
+  useEffect(() => {
+    if (selectedChannel) {
+      setEditChannelForm(channelToForm(selectedChannel));
+    }
+  }, [selectedChannel?.id]);
 
   async function submitAuth(event: FormEvent) {
     event.preventDefault();
@@ -273,6 +296,44 @@ export function App() {
       setNotice("用户已创建");
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "创建用户失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateSelectedChannel(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !selectedChannelId) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload: Record<string, unknown> = {
+        name: editChannelForm.name,
+        type: Number(editChannelForm.type),
+        status: Number(editChannelForm.status),
+        base_url: editChannelForm.base_url || null,
+        models: parseCsv(editChannelForm.models),
+        groups: parseCsv(editChannelForm.groups),
+        priority: Number(editChannelForm.priority),
+        weight: Number(editChannelForm.weight),
+        model_mapping: parseJsonObject(editChannelForm.model_mapping),
+        extra_config: parseJsonObject(editChannelForm.extra_config)
+      };
+      if (editChannelForm.key) {
+        payload.key = editChannelForm.key;
+      }
+      const updated = await apiRequest<Channel>(`/channels/${selectedChannelId}`, {
+        token,
+        method: "PATCH",
+        body: JSON.stringify(payload)
+      });
+      setEditChannelForm(channelToForm(updated));
+      setNotice("渠道已更新");
+      await refresh();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "更新渠道失败");
     } finally {
       setBusy(false);
     }
@@ -720,6 +781,98 @@ export function App() {
                         </div>
                       ) : null}
                     </dl>
+
+                    <form className="edit-channel-form" onSubmit={updateSelectedChannel}>
+                      <label>
+                        名称
+                        <input
+                          value={editChannelForm.name}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, name: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Type
+                        <input
+                          value={editChannelForm.type}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, type: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Status
+                        <input
+                          value={editChannelForm.status}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, status: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Base URL
+                        <input
+                          value={editChannelForm.base_url}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, base_url: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Models
+                        <input
+                          value={editChannelForm.models}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, models: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Groups
+                        <input
+                          value={editChannelForm.groups}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, groups: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Priority
+                        <input
+                          value={editChannelForm.priority}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, priority: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Weight
+                        <input
+                          value={editChannelForm.weight}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, weight: event.target.value })}
+                        />
+                      </label>
+                      <label className="wide">
+                        新 Key
+                        <input
+                          value={editChannelForm.key}
+                          onChange={(event) => setEditChannelForm({ ...editChannelForm, key: event.target.value })}
+                          type="password"
+                          placeholder="留空则保持当前 key"
+                        />
+                      </label>
+                      <label>
+                        Model Mapping
+                        <textarea
+                          value={editChannelForm.model_mapping}
+                          onChange={(event) =>
+                            setEditChannelForm({ ...editChannelForm, model_mapping: event.target.value })
+                          }
+                          rows={3}
+                        />
+                      </label>
+                      <label>
+                        Extra Config
+                        <textarea
+                          value={editChannelForm.extra_config}
+                          onChange={(event) =>
+                            setEditChannelForm({ ...editChannelForm, extra_config: event.target.value })
+                          }
+                          rows={3}
+                        />
+                      </label>
+                      <button className="secondary wide" disabled={busy}>
+                        <Save size={17} />
+                        保存渠道
+                      </button>
+                    </form>
 
                     <form className="bind-row" onSubmit={bindSelectedChannel}>
                       <select value={bindInstanceId} onChange={(event) => setBindInstanceId(event.target.value)}>

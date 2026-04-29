@@ -475,6 +475,17 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.edit-channel-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #e5e9f0;
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
 .mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 12px;
@@ -603,6 +614,7 @@ button:disabled {
 
   .metrics,
   .channel-form,
+  .edit-channel-form,
   .field-grid,
   .detail-grid,
   .log-head,

@@ -71,6 +71,20 @@ def test_channel_sync_mvp_flow() -> None:
         assert ordinary_view.json()["key"] is None
         assert ordinary_view.json()["key_configured"] is True
 
+        ordinary_update = client.patch(
+            f"/channels/{channel_id}",
+            headers=bearer(user_token),
+            json={"key": "sk-rotated-by-operator", "priority": 11},
+        )
+        assert ordinary_update.status_code == 200
+        assert ordinary_update.json()["key"] is None
+        assert ordinary_update.json()["key_configured"] is True
+        assert ordinary_update.json()["priority"] == 11
+
+        admin_view_after_update = client.get(f"/channels/{channel_id}", headers=bearer(admin_token))
+        assert admin_view_after_update.status_code == 200
+        assert admin_view_after_update.json()["key"] == "sk-rotated-by-operator"
+
         bindings = client.post(
             f"/channels/{channel_id}/bindings",
             headers=bearer(admin_token),
