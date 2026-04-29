@@ -98,6 +98,72 @@ function channelToForm(channel: Channel): ChannelForm {
   };
 }
 
+function syncStatusText(status: string): string {
+  const statusMap: Record<string, string> = {
+    pending: "待同步",
+    success: "成功",
+    failed: "失败"
+  };
+  return statusMap[status] ?? status;
+}
+
+function enabledText(enabled: boolean): string {
+  return enabled ? "启用" : "停用";
+}
+
+function keyStatusText(configured: boolean): string {
+  return configured ? "已配置密钥" : "未配置密钥";
+}
+
+function roleText(role: string): string {
+  const roleMap: Record<string, string> = {
+    admin: "管理员",
+    user: "普通用户"
+  };
+  return roleMap[role] ?? role;
+}
+
+function syncActionText(action: string): string {
+  const actionMap: Record<string, string> = {
+    create: "创建",
+    update: "更新"
+  };
+  return actionMap[action] ?? action;
+}
+
+function transportText(transport: string): string {
+  const transportMap: Record<string, string> = {
+    mock: "模拟",
+    "mcp-jsonrpc": "MCP JSON-RPC"
+  };
+  return transportMap[transport] ?? transport;
+}
+
+function authTypeText(authType: string): string {
+  const authMap: Record<string, string> = {
+    none: "无鉴权",
+    bearer: "Bearer 令牌",
+    "x-api-key": "API Key"
+  };
+  return authMap[authType] ?? authType;
+}
+
+function messageText(message: string): string {
+  if (message.includes("MCP request failed") && message.includes("Connection refused")) {
+    return "MCP 请求失败：连接被拒绝";
+  }
+  if (message.includes("Admin privileges required")) {
+    return "需要管理员权限";
+  }
+  if (message.includes("Invalid username or password")) {
+    return "账号或密码错误";
+  }
+  if (message.includes("No bindings found for sync")) {
+    return "没有可同步的绑定";
+  }
+  return message;
+}
+
 export function App() {
   const [token, setToken] = useState<string | null>(() => window.localStorage.getItem(TOKEN_KEY));
   const [user, setUser] = useState<User | null>(null);
@@ -177,7 +243,7 @@ export function App() {
     } catch (refreshError) {
       saveToken(null);
       setUser(null);
-      setError(refreshError instanceof Error ? refreshError.message : "刷新失败");
+      setError(refreshError instanceof Error ? messageText(refreshError.message) : "刷新失败");
     } finally {
       setBusy(false);
     }
@@ -210,7 +276,7 @@ export function App() {
       saveToken(response.access_token);
       setLoginForm(defaultLogin);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "认证失败");
+      setError(authError instanceof Error ? messageText(authError.message) : "认证失败");
     } finally {
       setBusy(false);
     }
@@ -237,7 +303,7 @@ export function App() {
       setNotice("实例已创建");
       await refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "创建实例失败");
+      setError(createError instanceof Error ? messageText(createError.message) : "创建实例失败");
     } finally {
       setBusy(false);
     }
@@ -273,7 +339,7 @@ export function App() {
       setNotice("渠道已创建");
       await refresh();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "创建渠道失败");
+      setError(createError instanceof Error ? messageText(createError.message) : "创建渠道失败");
     } finally {
       setBusy(false);
     }
@@ -295,7 +361,7 @@ export function App() {
       setUserForm(defaultUser);
       setNotice("用户已创建");
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "创建用户失败");
+      setError(createError instanceof Error ? messageText(createError.message) : "创建用户失败");
     } finally {
       setBusy(false);
     }
@@ -333,7 +399,7 @@ export function App() {
       setNotice("渠道已更新");
       await refresh();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "更新渠道失败");
+      setError(updateError instanceof Error ? messageText(updateError.message) : "更新渠道失败");
     } finally {
       setBusy(false);
     }
@@ -355,7 +421,7 @@ export function App() {
       setNotice("绑定已更新");
       await refresh();
     } catch (bindError) {
-      setError(bindError instanceof Error ? bindError.message : "绑定失败");
+      setError(bindError instanceof Error ? messageText(bindError.message) : "绑定失败");
     } finally {
       setBusy(false);
     }
@@ -377,7 +443,7 @@ export function App() {
       setNotice(failed ? `同步完成，失败 ${failed} 个` : "同步完成");
       await refresh();
     } catch (syncError) {
-      setError(syncError instanceof Error ? syncError.message : "同步失败");
+      setError(syncError instanceof Error ? messageText(syncError.message) : "同步失败");
     } finally {
       setBusy(false);
     }
@@ -394,10 +460,10 @@ export function App() {
         token,
         method: "POST"
       });
-      setNotice(result.status === "success" ? "同步完成" : result.error_message ?? "同步失败");
+      setNotice(result.status === "success" ? "同步完成" : messageText(result.error_message ?? "同步失败"));
       await refresh();
     } catch (syncError) {
-      setError(syncError instanceof Error ? syncError.message : "同步失败");
+      setError(syncError instanceof Error ? messageText(syncError.message) : "同步失败");
     } finally {
       setBusy(false);
     }
@@ -421,7 +487,7 @@ export function App() {
               <Shuffle size={22} />
             </div>
             <div>
-              <h1>NewAPI Channel Sync</h1>
+              <h1>NewAPI 渠道同步</h1>
               <p>项目渠道管理中心</p>
             </div>
           </div>
@@ -477,13 +543,13 @@ export function App() {
             <Shuffle size={20} />
           </div>
           <div>
-            <h1>NewAPI Channel Sync</h1>
-            <p>{user.username} · {user.role}</p>
+            <h1>NewAPI 渠道同步</h1>
+            <p>{user.username} · {roleText(user.role)}</p>
           </div>
         </div>
         <div className="top-actions">
           <a className="ghost-link" href="/docs" target="_blank" rel="noreferrer">
-            API Docs
+            接口文档
           </a>
           <button className="icon-text" onClick={refresh} disabled={busy} title="刷新">
             <RefreshCw className={busy ? "spin" : ""} size={17} />
@@ -514,7 +580,7 @@ export function App() {
               <input value={instanceForm.name} onChange={(event) => setInstanceForm({ ...instanceForm, name: event.target.value })} />
             </label>
             <label>
-              Base URL
+              基础地址
               <input
                 value={instanceForm.base_url}
                 onChange={(event) => setInstanceForm({ ...instanceForm, base_url: event.target.value })}
@@ -522,7 +588,7 @@ export function App() {
               />
             </label>
             <label>
-              MCP URL
+              MCP 地址
               <input
                 value={instanceForm.mcp_server_url}
                 onChange={(event) => setInstanceForm({ ...instanceForm, mcp_server_url: event.target.value })}
@@ -530,33 +596,33 @@ export function App() {
             </label>
             <div className="field-grid">
               <label>
-                Transport
+                传输方式
                 <select
                   value={instanceForm.mcp_transport}
                   onChange={(event) =>
                     setInstanceForm({ ...instanceForm, mcp_transport: event.target.value as InstanceForm["mcp_transport"] })
                   }
                 >
-                  <option value="mock">mock</option>
-                  <option value="mcp-jsonrpc">mcp-jsonrpc</option>
+                  <option value="mock">模拟</option>
+                  <option value="mcp-jsonrpc">MCP JSON-RPC</option>
                 </select>
               </label>
               <label>
-                Auth
+                鉴权方式
                 <select
                   value={instanceForm.mcp_auth_type}
                   onChange={(event) =>
                     setInstanceForm({ ...instanceForm, mcp_auth_type: event.target.value as InstanceForm["mcp_auth_type"] })
                   }
                 >
-                  <option value="none">none</option>
-                  <option value="bearer">bearer</option>
-                  <option value="x-api-key">x-api-key</option>
+                  <option value="none">无鉴权</option>
+                  <option value="bearer">Bearer 令牌</option>
+                  <option value="x-api-key">API Key</option>
                 </select>
               </label>
             </div>
             <label>
-              MCP Secret
+              MCP 密钥
               <input
                 value={instanceForm.mcp_secret}
                 onChange={(event) => setInstanceForm({ ...instanceForm, mcp_secret: event.target.value })}
@@ -564,7 +630,7 @@ export function App() {
               />
             </label>
             <label>
-              MCP Config
+              MCP 配置
               <textarea
                 value={instanceForm.mcp_config}
                 onChange={(event) => setInstanceForm({ ...instanceForm, mcp_config: event.target.value })}
@@ -603,8 +669,8 @@ export function App() {
                     value={userForm.role}
                     onChange={(event) => setUserForm({ ...userForm, role: event.target.value as UserForm["role"] })}
                   >
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
+                    <option value="user">普通用户</option>
+                    <option value="admin">管理员</option>
                   </select>
                 </label>
                 <button className="secondary" disabled={busy}>
@@ -625,9 +691,9 @@ export function App() {
                   <article className="row-card" key={instance.id}>
                     <div>
                       <strong>{instance.name}</strong>
-                      <span>{instance.mcp_transport} · {instance.mcp_auth_type}</span>
+                      <span>{transportText(instance.mcp_transport)} · {authTypeText(instance.mcp_auth_type)}</span>
                     </div>
-                    <StatusPill ok={instance.is_enabled} text={instance.is_enabled ? "enabled" : "disabled"} />
+                    <StatusPill ok={instance.is_enabled} text={enabledText(instance.is_enabled)} />
                   </article>
                 ))}
                 {instances.length === 0 ? <EmptyState text="暂无实例" /> : null}
@@ -642,53 +708,53 @@ export function App() {
                   <input value={channelForm.name} onChange={(event) => setChannelForm({ ...channelForm, name: event.target.value })} />
                 </label>
                 <label>
-                  Type
+                  类型
                   <input value={channelForm.type} onChange={(event) => setChannelForm({ ...channelForm, type: event.target.value })} />
                 </label>
                 <label>
-                  Status
+                  状态
                   <input
                     value={channelForm.status}
                     onChange={(event) => setChannelForm({ ...channelForm, status: event.target.value })}
                   />
                 </label>
                 <label>
-                  Base URL
+                  基础地址
                   <input
                     value={channelForm.base_url}
                     onChange={(event) => setChannelForm({ ...channelForm, base_url: event.target.value })}
                   />
                 </label>
                 <label>
-                  Models
+                  模型
                   <input
                     value={channelForm.models}
                     onChange={(event) => setChannelForm({ ...channelForm, models: event.target.value })}
                   />
                 </label>
                 <label>
-                  Groups
+                  分组
                   <input
                     value={channelForm.groups}
                     onChange={(event) => setChannelForm({ ...channelForm, groups: event.target.value })}
                   />
                 </label>
                 <label>
-                  Priority
+                  优先级
                   <input
                     value={channelForm.priority}
                     onChange={(event) => setChannelForm({ ...channelForm, priority: event.target.value })}
                   />
                 </label>
                 <label>
-                  Weight
+                  权重
                   <input
                     value={channelForm.weight}
                     onChange={(event) => setChannelForm({ ...channelForm, weight: event.target.value })}
                   />
                 </label>
                 <label className="wide">
-                  Key
+                  密钥
                   <input
                     value={channelForm.key}
                     onChange={(event) => setChannelForm({ ...channelForm, key: event.target.value })}
@@ -696,7 +762,7 @@ export function App() {
                   />
                 </label>
                 <label>
-                  Model Mapping
+                  模型映射
                   <textarea
                     value={channelForm.model_mapping}
                     onChange={(event) => setChannelForm({ ...channelForm, model_mapping: event.target.value })}
@@ -704,7 +770,7 @@ export function App() {
                   />
                 </label>
                 <label>
-                  Extra Config
+                  扩展配置
                   <textarea
                     value={channelForm.extra_config}
                     onChange={(event) => setChannelForm({ ...channelForm, extra_config: event.target.value })}
@@ -738,9 +804,9 @@ export function App() {
                   >
                     <span>
                       <strong>{channel.name}</strong>
-                      <small>{channel.models.join(", ") || "no models"}</small>
+                      <small>{channel.models.join(", ") || "未配置模型"}</small>
                     </span>
-                    <StatusPill ok={channel.key_configured} text={channel.key_configured ? "key" : "no key"} />
+                    <StatusPill ok={channel.key_configured} text={channel.key_configured ? "有密钥" : "无密钥"} />
                   </button>
                 ))}
                 {channels.length === 0 ? <EmptyState text="暂无渠道" /> : null}
@@ -752,31 +818,31 @@ export function App() {
                     <div className="detail-head">
                       <div>
                         <h2>{selectedChannel.name}</h2>
-                        <p>type {selectedChannel.type} · status {selectedChannel.status}</p>
+                        <p>类型 {selectedChannel.type} · 状态 {selectedChannel.status}</p>
                       </div>
-                      <StatusPill ok={selectedChannel.key_configured} text={selectedChannel.key_configured ? "key configured" : "no key"} />
+                      <StatusPill ok={selectedChannel.key_configured} text={keyStatusText(selectedChannel.key_configured)} />
                     </div>
 
                     <dl className="detail-grid">
                       <div>
-                        <dt>Base URL</dt>
+                        <dt>基础地址</dt>
                         <dd>{selectedChannel.base_url ?? "-"}</dd>
                       </div>
                       <div>
-                        <dt>Groups</dt>
+                        <dt>分组</dt>
                         <dd>{selectedChannel.groups.join(", ") || "-"}</dd>
                       </div>
                       <div>
-                        <dt>Priority</dt>
+                        <dt>优先级</dt>
                         <dd>{selectedChannel.priority}</dd>
                       </div>
                       <div>
-                        <dt>Weight</dt>
+                        <dt>权重</dt>
                         <dd>{selectedChannel.weight}</dd>
                       </div>
                       {selectedChannel.key ? (
                         <div className="wide">
-                          <dt>Key</dt>
+                          <dt>密钥</dt>
                           <dd className="mono">{selectedChannel.key}</dd>
                         </div>
                       ) : null}
@@ -791,65 +857,65 @@ export function App() {
                         />
                       </label>
                       <label>
-                        Type
+                        类型
                         <input
                           value={editChannelForm.type}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, type: event.target.value })}
                         />
                       </label>
                       <label>
-                        Status
+                        状态
                         <input
                           value={editChannelForm.status}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, status: event.target.value })}
                         />
                       </label>
                       <label>
-                        Base URL
+                        基础地址
                         <input
                           value={editChannelForm.base_url}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, base_url: event.target.value })}
                         />
                       </label>
                       <label>
-                        Models
+                        模型
                         <input
                           value={editChannelForm.models}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, models: event.target.value })}
                         />
                       </label>
                       <label>
-                        Groups
+                        分组
                         <input
                           value={editChannelForm.groups}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, groups: event.target.value })}
                         />
                       </label>
                       <label>
-                        Priority
+                        优先级
                         <input
                           value={editChannelForm.priority}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, priority: event.target.value })}
                         />
                       </label>
                       <label>
-                        Weight
+                        权重
                         <input
                           value={editChannelForm.weight}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, weight: event.target.value })}
                         />
                       </label>
                       <label className="wide">
-                        新 Key
+                        新密钥
                         <input
                           value={editChannelForm.key}
                           onChange={(event) => setEditChannelForm({ ...editChannelForm, key: event.target.value })}
                           type="password"
-                          placeholder="留空则保持当前 key"
+                          placeholder="留空则保持当前密钥"
                         />
                       </label>
                       <label>
-                        Model Mapping
+                        模型映射
                         <textarea
                           value={editChannelForm.model_mapping}
                           onChange={(event) =>
@@ -859,7 +925,7 @@ export function App() {
                         />
                       </label>
                       <label>
-                        Extra Config
+                        扩展配置
                         <textarea
                           value={editChannelForm.extra_config}
                           onChange={(event) =>
@@ -894,11 +960,11 @@ export function App() {
                         return (
                           <article className="binding-row" key={binding.id}>
                             <div>
-                              <strong>{instance?.name ?? `instance ${binding.instance_id}`}</strong>
-                              <span>{binding.remote_channel_id ?? "pending remote id"}</span>
-                              {binding.last_error ? <small className="error-text">{binding.last_error}</small> : null}
+                              <strong>{instance?.name ?? `实例 ${binding.instance_id}`}</strong>
+                              <span>{binding.remote_channel_id ?? "等待远端 ID"}</span>
+                              {binding.last_error ? <small className="error-text">{messageText(binding.last_error)}</small> : null}
                             </div>
-                            <StatusPill ok={binding.sync_status === "success"} text={binding.sync_status} />
+                            <StatusPill ok={binding.sync_status === "success"} text={syncStatusText(binding.sync_status)} />
                             <button className="icon-only" onClick={() => void syncBinding(binding.id)} title="同步绑定" aria-label="同步绑定">
                               <RefreshCw size={17} />
                             </button>
@@ -930,8 +996,8 @@ export function App() {
                   <span>{formatDate(log.created_at)}</span>
                   <span>#{log.channel_id}</span>
                   <span>#{log.instance_id}</span>
-                  <span>{log.action}</span>
-                  <StatusPill ok={log.status === "success"} text={log.status} />
+                  <span>{syncActionText(log.action)}</span>
+                  <StatusPill ok={log.status === "success"} text={syncStatusText(log.status)} />
                 </div>
               ))}
               {logs.length === 0 ? <EmptyState text="暂无日志" /> : null}
