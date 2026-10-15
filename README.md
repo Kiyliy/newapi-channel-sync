@@ -1,89 +1,87 @@
 # newapi-channel-sync
 
-NewAPI 渠道同步管理工具。
+**English** · [简体中文](README.zh-CN.md)
 
-项目目标是提供一个独立的渠道管理中心，用于登记多个 NewAPI 实例，并将本项目内新建和绑定的渠道单向同步到这些实例中。
+One place to manage upstream channels for many [New API](https://github.com/QuantumNous/new-api) instances. Create a channel once, bind it to the instances that need it, and push it out with one click.
 
-## 当前能力
+![python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)
+![fastapi](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![react](https://img.shields.io/badge/React_19-61DAFB?logo=react&logoColor=black)
+![license](https://img.shields.io/badge/license-MIT-blue)
 
-- 账号密码登录，登录后返回 JWT。
-- 首次启动后通过 `/auth/bootstrap` 创建第一个管理员。
-- 管理员可创建普通用户。
-- 管理 NewAPI 实例和用户 MCP 连接信息。
-- 管理项目侧渠道，密钥加密保存。
-- 管理员可查看渠道 key 明文，普通用户只看到 `key_configured` 状态。
-- 将项目侧渠道绑定到一个或多个 NewAPI 实例。
-- 手动触发项目侧渠道到 NewAPI 实例的单向同步。
-- 同步通过 MCP Client 抽象执行，当前提供：
-  - `mock`：本地开发和测试使用。
-  - `mcp-jsonrpc`：通用 MCP JSON-RPC `tools/call` 适配器。
-- 记录同步日志，并对 key 做脱敏。
+```text
+                ┌──────────────► New API #1
+project channel ┼──────────────► New API #2
+  (source of    └──────────────► New API #3
+     truth)        one-way sync over MCP
+```
 
-## 本地运行
+## Why
+
+Running several New API gateways means adding the same upstream key to each admin panel by hand, and they drift apart. This tool keeps a single project-side list of channels as the source of truth and syncs it one way to every bound instance. Channels that already exist on an instance are left alone.
+
+## Features
+
+- Username / password login with JWT sessions; the first admin is created through `/auth/bootstrap`
+- Admins can create regular users
+- Register any number of New API instances and their MCP connection details
+- Channel keys are encrypted at rest; only admins can see plaintext, everyone else sees `key_configured`
+- Bind one channel to one or more instances and trigger a sync manually
+- Sync logs with keys masked
+- Pluggable MCP clients: `mock` for local dev and tests, `mcp-jsonrpc` for a generic MCP `tools/call` endpoint
+
+## Quick start
 
 ```bash
 uv sync
-npm install --prefix frontend
-npm run build --prefix frontend
-cp .env.example .env
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+npm install --prefix frontend && npm run build --prefix frontend
+cp .env.example .env          # set APP_SECRET_KEY to a long random string
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
-打开前端：
+- Dashboard: http://127.0.0.1:8000/
+- API docs: http://127.0.0.1:8000/docs
 
-```text
-http://127.0.0.1:8000/
-```
-
-打开接口文档：
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-## 初始化管理员
-
-服务启动后，先调用：
+Create the first admin (returns `409` once any user exists):
 
 ```http
 POST /auth/bootstrap
 Content-Type: application/json
 
-{
-  "username": "admin",
-  "password": "your-password"
-}
+{ "username": "admin", "password": "your-password" }
 ```
 
-系统已有任意用户后，该接口会返回 `409`，避免重复初始化管理员。
+## MCP transport
 
-## MCP 配置说明
+When adding an instance, set `mcp_transport` to:
 
-新增 NewAPI 实例时，`mcp_transport` 支持：
+- `mock`: no network call, returns a fake remote channel ID
+- `mcp-jsonrpc`: sends JSON-RPC to `mcp_server_url`, calling `newapi.channel.create` and `newapi.channel.update` by default
 
-- `mock`：不请求远端，直接生成一个 mock 远端渠道 ID。
-- `mcp-jsonrpc`：向 `mcp_server_url` 发起 JSON-RPC 请求。
-
-`mcp-jsonrpc` 默认调用工具：
-
-- 创建渠道：`newapi.channel.create`
-- 更新渠道：`newapi.channel.update`
-
-如果实际 NewAPI 用户 MCP 工具名不同，可以在实例的 `mcp_config` 中覆盖：
+Override the tool names per instance in `mcp_config`:
 
 ```json
-{
-  "create_tool": "actual.create.tool",
-  "update_tool": "actual.update.tool",
-  "timeout_seconds": 30
-}
+{ "create_tool": "actual.create.tool", "update_tool": "actual.update.tool", "timeout_seconds": 30 }
 ```
 
-真实 NewAPI 用户 MCP 的工具名、入参和返回结构确认后，只需要收敛 `app/mcp/jsonrpc.py` 的适配逻辑。
+Adapting to a different MCP schema only touches [`app/mcp/jsonrpc.py`](app/mcp/jsonrpc.py).
 
-## 测试
+## Project layout
+
+```text
+app/        FastAPI backend: auth, instances, channels, sync service, MCP clients
+frontend/   React + Vite dashboard
+tests/      pytest API tests
+docs/       requirements (Chinese)
+```
+
+## Tests
 
 ```bash
 uv run pytest
 npm run build --prefix frontend
 ```
+
+## License
+
+[MIT](LICENSE)
